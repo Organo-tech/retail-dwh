@@ -9,4 +9,4 @@ That folder contains the production-style Docker stack for:
 - Great Expectations validation
 - Apache Superset visualization
 
-Open [retail_dwh/README.md](/e:/Project/Projects/retail-dwh-prodready/retail_dwh/README.md) for setup and run instructions.
+Open [retail_dwh/README.md](retail_dwh/README.md) for setup and run instructions.

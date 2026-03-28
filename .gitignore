@@ -1,0 +1,20 @@
+.DS_Store
+*.log
+
+# Root-level local artifacts and legacy workspace copies.
+data/
+depricated/
+
+# Environment files should stay local.
+.env
+**/.env
+
+# Python caches.
+__pycache__/
+**/__pycache__/
+
+# Great Expectations local artifacts.
+**/great_expectations/uncommitted/
+
+# Superset local state.
+**/superset_home/

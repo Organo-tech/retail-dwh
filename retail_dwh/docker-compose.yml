@@ -1,0 +1,94 @@
+services:
+  postgres:
+    # PostgreSQL stores the warehouse tables, mart objects, and Superset metadata.
+    image: postgres:16
+    env_file:
+      - .env
+    ports:
+      # Expose Postgres on the host for local SQL clients and troubleshooting.
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      # Persist database files across restarts.
+      - pgdata:/var/lib/postgresql/data
+      # Run bootstrap SQL scripts on first initialization.
+      - ./sql:/docker-entrypoint-initdb.d
+      # Mount the Kaggle CSV folder into the container.
+      - ${DATA_DIR:-./data}:/data
+      # Override default Postgres settings with tuned local config.
+      - ./config/postgres.conf:/etc/postgresql/postgres.conf:ro
+    # Force Postgres to use the mounted custom configuration.
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgres.conf"]
+    healthcheck:
+      # Wait until the target database is ready before starting dependent services.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    # Automatically recover from transient container failures.
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 1536M
+
+  gx:
+    # One-off utility container for Great Expectations validation jobs.
+    build:
+      context: .
+      dockerfile: gx/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      # Mount the repo so GX can read config, checkpoints, and write docs locally.
+      - ./:/app
+    working_dir: /app
+    depends_on:
+      # Only run validation after Postgres is accepting connections.
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1024M
+
+  superset:
+    # Superset provides the BI layer and connects using the read-only reporting user.
+    build:
+      context: .
+      dockerfile: superset/Dockerfile
+    env_file:
+      - .env
+    environment:
+      # Load the local Superset config module from the mounted folder.
+      SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+      PYTHONPATH: /app/pythonpath
+    volumes:
+      # Mount Superset bootstrap scripts and config into the container.
+      - ./superset:/app/pythonpath
+      # Persist Superset state such as uploaded assets and local metadata cache.
+      - superset_home:/app/superset_home
+    ports:
+      # Expose the Superset UI on the host.
+      - "${SUPERSET_PORT}:8088"
+    depends_on:
+      # Avoid bootstrapping Superset before Postgres is healthy.
+      postgres:
+        condition: service_healthy
+    command:
+      - /bin/sh
+      - /app/pythonpath/bootstrap.sh
+    # Keep the BI layer available if the process exits unexpectedly.
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 2048M
+
+volumes:
+  # Persistent warehouse storage.
+  pgdata:
+  # Persistent Superset application state.
+  superset_home:

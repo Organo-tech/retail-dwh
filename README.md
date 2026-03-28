@@ -1,6 +1,6 @@
 # Retail DWH Repository
 
-The maintained project is in [retail_dwh](/e:/Project/Projects/retail-dwh-prodready/retail_dwh).
+The maintained project is in [retail_dwh](retail_dwh).
 
 That folder contains the production-style Docker stack for:
 
